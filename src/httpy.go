@@ -1,4 +1,4 @@
-package util
+package lib
 
 import "strings"
 
@@ -12,7 +12,11 @@ type HTTPy struct {
 	Upgrade     string
 }
 
-func GetHTTPy(lines string) (httpy *HTTPy) {
+func NewHTTPy() *HTTPy {
+	return &HTTPy{}
+}
+
+func (h *HTTPy) GetHTTPy(lines string) (httpy *HTTPy) {
 
 	linesArr := strings.Split(lines, "\n")
 	httpy = &HTTPy{}

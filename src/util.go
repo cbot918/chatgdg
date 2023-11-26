@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"crypto/sha1"
@@ -23,3 +23,7 @@ func GetUpgradeResponseString(webSecSocketkey string) []byte {
 	secWebSocketAccept := base64.StdEncoding.EncodeToString(h.Sum(nil))
 	return []byte(fmt.Sprintf("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", secWebSocketAccept))
 }
+
+// func GetCutTail(raw []byte) string {
+// 	return regexp.MustCompile(`(.*)\\`).FindStringSubmatch("ggqu123\xaa")[1]
+// }

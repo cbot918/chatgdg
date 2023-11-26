@@ -1,108 +1,135 @@
 package main
 
 import (
-	"chatdgd/src/util"
+	"bufio"
+	lib "chatgdg/src"
 	"fmt"
 	"log"
 	"net"
-	"sync"
 )
 
 const (
-	protocol = "tcp"
-	host     = "localhost:8888"
+	tcp    = "tcp"
+	domain = ":8888"
 )
 
-var mutex sync.Mutex
+var (
+	clients   = make(map[*Client]bool)
+	broadcast = make(chan []byte)
+	join      = make(chan *Client)
+	leave     = make(chan *Client)
+)
+
+type Client struct {
+	conn   net.Conn
+	writer *bufio.Writer
+}
 
 func main() {
 
-	fmt.Println("listening: ", host)
-	listener, err := net.Listen(protocol, host)
+	fmt.Println("listening:", domain)
+	lis, err := net.Listen(tcp, domain)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ws := NewWebsocket()
-
 	for {
-		conn, err := listener.Accept()
+		// accept conn
+		conn, err := lis.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		go ws.handleWSConn(conn)
+		// Create a new client
+		client := &Client{
+			conn:   conn,
+			writer: bufio.NewWriter(conn),
+		}
+
+		// Register the new client
+		clients[client] = true
+
+		go handleConn(client)
+
+		go broadcaster()
 
 	}
 
 }
 
-type Client struct {
-	Name string
-	Conn net.Conn
-}
+func handleConn(client *Client) {
+	// defer func() {
+	// 	// Unregister the client when the connection is closed
+	// 	leave <- client
+	// 	client.conn.Close()
+	// }()
+	frame := lib.NewFrame()
 
-func (c *Client) read() (string, error) {
+	// read first http message
 	buf := make([]byte, 1024)
-	n, err := c.Conn.Read(buf)
+	n, err := client.conn.Read(buf)
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
-	return string(buf[:n]), nil
+	fmt.Println(string(buf[:n]))
+
+	// get transformed httpy
+	lines := string(buf[:n])
+	httpy := lib.NewHTTPy().GetHTTPy(lines)
+	lib.PrintJSON(httpy)
+	key := httpy.SecWebKey[1:]
+
+	// get upgrade response string
+	responseHTTPString := lib.GetUpgradeResponseString(key)
+	fmt.Println("response: ")
+	fmt.Println(string(responseHTTPString))
+
+	// write http response to client
+	_, err = client.conn.Write(responseHTTPString)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("websocket upgrade success!\n\n")
+
+	// get first message
+	buf2 := make([]byte, 4096)
+	_, err = client.conn.Read(buf2)
+	if err != nil {
+		fmt.Println("read buffer failed")
+		log.Fatal(err)
+	}
+	message := frame.DecodeFrame(buf2)
+	fmt.Printf("[*]client: ")
+	fmt.Println(string(message))
+
+	// response first message
+	rawMsg := []byte("welcome to qchat")
+	encodedMsg := frame.EncodeFrame(rawMsg)
+
+	// _, err = client.conn.Write(encodedMsg)
+	// if err != nil {
+	// 	fmt.Println("write buffer failed")
+	// 	log.Fatal(err)
+	// }
+
+	// broadcast message
+	broadcast <- encodedMsg
+
 }
 
-type Websocket struct {
-	Count int
-	Conns map[int]*Client
-}
-
-func NewWebsocket() *Websocket {
-	return &Websocket{
-		Conns: make(map[int]*Client),
-	}
-}
-
-const (
-	GET  = "GET"
-	POST = "POST"
-)
-
-func (w *Websocket) handleWSConn(conn net.Conn) {
-
-	w.Count += 1
-
-	mutex.Lock()
-	w.Conns[w.Count] = &Client{
-		Name: "yale",
-		Conn: conn,
-	}
-	mutex.Unlock()
-
-	fmt.Printf("number of current users: %d\n", w.Count)
-	fmt.Printf("%v connected\n", conn)
-
-	// fmt.Println(conn)
-	// fmt.Printf("%#+v", conn)
-	// printJSON(conn.RemoteAddr())
-
-	lines, err := w.Conns[1].read()
-	if err != nil {
-		fmt.Println(err)
-		// log.Fatal("read line failed")
-	}
-
-	httpy := util.GetHTTPy(lines)
-
-	fmt.Println("source http content: ")
-	fmt.Println(lines)
-
-	fmt.Println("httpy data: ")
-	util.PrintJSON(httpy)
-
-	upgrader := util.NewWsUpgrader()
-
-	err = upgrader.Upgrade(w.Conns[1].Conn, httpy.SecWebKey)
-	if err != nil {
-		fmt.Println(err)
+func broadcaster() {
+	for {
+		select {
+		case message := <-broadcast:
+			for client := range clients {
+				fmt.Println("casting ")
+				// Send the message to each connected client
+				_, err := client.writer.Write(message)
+				if err != nil {
+					log.Printf("Error broadcasting message: %v", err)
+				}
+				client.writer.Flush()
+			}
+		}
 	}
 }
