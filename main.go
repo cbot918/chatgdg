@@ -63,6 +63,7 @@ func handleConn(client *Client) {
 	// 	leave <- client
 	// 	client.conn.Close()
 	// }()
+	// upgrader := lib.NewUpgrader()
 	frame := lib.NewFrame()
 
 	// read first http message
@@ -112,7 +113,6 @@ func handleConn(client *Client) {
 	// 	log.Fatal(err)
 	// }
 
-	// broadcast message
 	broadcast <- encodedMsg
 
 }

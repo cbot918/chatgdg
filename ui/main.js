@@ -5,11 +5,23 @@ function sendID(e) {
     s.setName(e.target.value);
     console.log(s.getName());
     e.target.value = "";
+    enableDisable("#user_id", true);
+    enableDisable("#message", false);
+    connect(s.getName());
   }
 }
 
-function connect() {
-  const ws = new WebSocket("ws://localhost:8888");
+function enableDisable(name, state) {
+  document.querySelector(name).disabled = state;
+}
+
+function connect(name) {
+  let url = "ws://localhost:8888";
+  if (name) {
+    url += "?name=" + name;
+  }
+
+  const ws = new WebSocket(url);
   ws.onopen = (e) => {
     // console.log("ws opened");
     ws.send("onopen message from client");
