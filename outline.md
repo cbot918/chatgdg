@@ -46,6 +46,10 @@
 
 5. 技術細節 1
 
+   1. 什麼是 open files (ulimit, soft limit, hard limit)
+   2. 什麼是 select (好處: 簡單實現, 壞處: 量大的化, 效能會降低)
+   3. 什麼是 epoll
+
 6. 技術細節 2
 
 7. 遇到的困難 / 解決方法

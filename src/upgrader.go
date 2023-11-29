@@ -1,11 +1,11 @@
 package lib
 
-// type Upgrader struct{}
+type Upgrader struct{}
 
-// func NewUpgrader() *Upgrader {
-// 	return &Upgrader{}
-// }
+func NewUpgrader() *Upgrader {
+	return &Upgrader{}
+}
 
-// func (u *Upgrader) Upgrade(){
+func (u *Upgrader) Upgrade(client *Client) {
 
-// }
+}
